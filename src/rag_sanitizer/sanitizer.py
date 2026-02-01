@@ -143,7 +143,11 @@ def parse_chunk(line: str) -> Chunk:
 
 
 def sanitize_chunk(
-    chunk: Chunk, *, require_citations: bool = True, rule_pack: RulePack | None = None
+    chunk: Chunk,
+    *,
+    require_citations: bool = True,
+    rule_pack: RulePack | None = None,
+    markdown_aware: bool = False,
 ) -> SanitizedChunk:
     rules = rule_pack or default_rule_pack()
     flags: list[str] = []
@@ -153,7 +157,32 @@ def sanitize_chunk(
 
     instruction_like = False
     tool_like = False
+
+    in_fenced_code_block = False
+    fence_char: str | None = None
+    fence_len: int | None = None
+
     for line_number, line in enumerate(lines, start=1):
+        if markdown_aware:
+            fence_match = re.match(r"^\s*([`~]{3,})", line)
+            if fence_match:
+                fence = fence_match.group(1)
+                if not in_fenced_code_block:
+                    in_fenced_code_block = True
+                    fence_char = fence[0]
+                    fence_len = len(fence)
+                else:
+                    if fence_char == fence[0] and fence_len is not None and len(fence) >= fence_len:
+                        in_fenced_code_block = False
+                        fence_char = None
+                        fence_len = None
+                kept_lines.append(line)
+                continue
+
+            if in_fenced_code_block:
+                kept_lines.append(line)
+                continue
+
         matched_patterns = [
             pattern_str
             for pattern, pattern_str in zip(

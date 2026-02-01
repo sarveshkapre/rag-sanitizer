@@ -31,6 +31,12 @@ Read from stdin / write to stdout and fail the run if risk is too high:
 cat examples/chunks.jsonl | rag-sanitize --in - --out - --max-risk 0.7 > sanitized.jsonl
 ```
 
+## Markdown-aware sanitization
+Ignore instruction-like matches inside fenced code blocks:
+```bash
+rag-sanitize --in examples/chunks.jsonl --out sanitized.jsonl --markdown
+```
+
 ## Input format (JSONL)
 Each line is a JSON object:
 ```json

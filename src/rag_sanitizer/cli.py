@@ -35,6 +35,11 @@ MAX_RISK_OPT = typer.Option(
     max=1.0,
     help="Exit non-zero if any chunk risk_score is >= this threshold",
 )
+MARKDOWN_OPT = typer.Option(
+    False,
+    "--markdown",
+    help="Enable Markdown-aware sanitization (e.g., ignore matches inside fenced code blocks)",
+)
 QUIET_OPT = typer.Option(False, "--quiet", help="Suppress summary output")
 
 
@@ -59,6 +64,7 @@ def run(
     rules: Path | None = RULES_OPT,
     dump_default_rules: Path | None = DUMP_DEFAULT_RULES_OPT,
     max_risk: float | None = MAX_RISK_OPT,
+    markdown: bool = MARKDOWN_OPT,
     on_error: OnError = ON_ERROR_OPT,
     quiet: bool = QUIET_OPT,
 ) -> None:
@@ -118,6 +124,7 @@ def run(
                 chunk,
                 require_citations=not allow_missing_citations,
                 rule_pack=rule_pack,
+                markdown_aware=markdown,
             )
             outfile.write(sanitized.to_json())
             outfile.write("\n")

@@ -8,6 +8,7 @@ Canonical plan lives in `docs/PLAN.md`.
 - Configurable rule packs (`--rules`, `--dump-default-rules`).
 - Stdin/stdout support (`--in -`, `--out -`) plus risk gating (`--max-risk`).
 - Output now includes `source` + `redactions` metadata for transparency.
+- Optional Markdown-aware sanitization (`--markdown`).
 
 ## What ships next
 - Markdown/HTML-aware sanitization (preserve structure; strip only directive spans).

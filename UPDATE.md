@@ -5,6 +5,7 @@
 - CI-friendly IO: `--in -` / `--out -`
 - Risk gating for pipelines: `--max-risk 0..1` exits non-zero if any chunk meets/exceeds threshold
 - Output transparency: JSONL now includes `source` and `redactions` (line-level rule hits)
+- Markdown-aware mode: `--markdown` ignores matches inside fenced code blocks
 
 ## How to verify
 ```bash
@@ -14,4 +15,3 @@ make build
 
 ## Notes
 - Per repo policy, no PR was created/updated; changes are committed directly to `main`.
-
