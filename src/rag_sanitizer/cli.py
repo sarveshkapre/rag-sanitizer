@@ -1,44 +1,142 @@
 from __future__ import annotations
 
+import sys
+from contextlib import nullcontext
+from enum import Enum
 from pathlib import Path
 
 import typer
 
-from rag_sanitizer.sanitizer import parse_chunk, sanitize_chunk
+from rag_sanitizer.sanitizer import (
+    dump_default_rules_json,
+    load_rule_pack,
+    parse_chunk,
+    sanitize_chunk,
+)
 
 app = typer.Typer(no_args_is_help=True)
 
-IN_OPT = typer.Option(..., "--in", "-i", help="Input JSONL file")
-OUT_OPT = typer.Option(..., "--out", "-o", help="Output JSONL file")
+IN_OPT = typer.Option(None, "--in", "-i", help="Input JSONL file path, or '-' for stdin")
+OUT_OPT = typer.Option(None, "--out", "-o", help="Output JSONL file path, or '-' for stdout")
 ALLOW_MISSING_OPT = typer.Option(
     False,
     "--allow-missing-citations",
     help="Do not fail citation checks when citations are missing",
 )
 
+RULES_OPT = typer.Option(None, "--rules", help="JSON rules file (regex lists + weights)")
+DUMP_DEFAULT_RULES_OPT = typer.Option(
+    None, "--dump-default-rules", help="Write default rules JSON to a file and exit"
+)
+MAX_RISK_OPT = typer.Option(
+    None,
+    "--max-risk",
+    min=0.0,
+    max=1.0,
+    help="Exit non-zero if any chunk risk_score is >= this threshold",
+)
+QUIET_OPT = typer.Option(False, "--quiet", help="Suppress summary output")
+
+
+class OnError(str, Enum):
+    fail = "fail"
+    skip = "skip"
+
+
+ON_ERROR_OPT = typer.Option(
+    OnError.fail,
+    "--on-error",
+    case_sensitive=False,
+    help="What to do with invalid JSONL lines",
+)
+
 
 @app.command()
 def run(
-    input_path: Path = IN_OPT,
-    output_path: Path = OUT_OPT,
+    input_path: str | None = IN_OPT,
+    output_path: str | None = OUT_OPT,
     allow_missing_citations: bool = ALLOW_MISSING_OPT,
+    rules: Path | None = RULES_OPT,
+    dump_default_rules: Path | None = DUMP_DEFAULT_RULES_OPT,
+    max_risk: float | None = MAX_RISK_OPT,
+    on_error: OnError = ON_ERROR_OPT,
+    quiet: bool = QUIET_OPT,
 ) -> None:
-    if not input_path.exists():
-        raise typer.BadParameter(f"Input not found: {input_path}")
+    if dump_default_rules is not None:
+        dump_default_rules.parent.mkdir(parents=True, exist_ok=True)
+        dump_default_rules.write_text(dump_default_rules_json() + "\n", encoding="utf-8")
+        typer.echo(f"Wrote default rules to {dump_default_rules}")
+        raise typer.Exit(0)
 
-    output_path.parent.mkdir(parents=True, exist_ok=True)
+    if input_path is None or output_path is None:
+        raise typer.BadParameter(
+            "--in and --out are required (unless --dump-default-rules is used)"
+        )
 
-    with (
-        input_path.open("r", encoding="utf-8") as infile,
-        output_path.open("w", encoding="utf-8") as outfile,
-    ):
-        for line in infile:
-            line = line.strip()
+    rule_pack = load_rule_pack(rules) if rules is not None else None
+
+    if input_path != "-":
+        input_file = Path(input_path)
+        if not input_file.exists():
+            raise typer.BadParameter(f"Input not found: {input_file}")
+
+    if output_path != "-":
+        output_file = Path(output_path)
+        output_file.parent.mkdir(parents=True, exist_ok=True)
+
+    processed = 0
+    flagged = 0
+    max_seen_risk = 0.0
+    should_fail = False
+
+    infile_cm = (
+        nullcontext(sys.stdin)
+        if input_path == "-"
+        else Path(input_path).open("r", encoding="utf-8")
+    )
+    outfile_cm = (
+        nullcontext(sys.stdout)
+        if output_path == "-"
+        else Path(output_path).open("w", encoding="utf-8")
+    )
+
+    with infile_cm as infile, outfile_cm as outfile:
+        for line_number, raw_line in enumerate(infile, start=1):
+            line = raw_line.strip()
             if not line:
                 continue
-            chunk = parse_chunk(line)
-            sanitized = sanitize_chunk(chunk, require_citations=not allow_missing_citations)
+            try:
+                chunk = parse_chunk(line)
+            except Exception as exc:  # noqa: BLE001 - CLI boundary
+                if on_error == OnError.skip:
+                    typer.echo(f"Skipping invalid JSONL line {line_number}: {exc}", err=True)
+                    continue
+                typer.echo(f"Invalid JSONL line {line_number}: {exc}", err=True)
+                raise typer.Exit(2) from exc
+
+            sanitized = sanitize_chunk(
+                chunk,
+                require_citations=not allow_missing_citations,
+                rule_pack=rule_pack,
+            )
             outfile.write(sanitized.to_json())
             outfile.write("\n")
 
-    typer.echo(f"Wrote sanitized output to {output_path}")
+            processed += 1
+            if sanitized.flags:
+                flagged += 1
+            if sanitized.risk_score > max_seen_risk:
+                max_seen_risk = sanitized.risk_score
+            if max_risk is not None and sanitized.risk_score >= max_risk:
+                should_fail = True
+
+    if not quiet:
+        destination = "stdout" if output_path == "-" else str(Path(output_path))
+        typer.echo(
+            f"Processed {processed} chunks (flagged: {flagged}, max risk: {max_seen_risk:.2f}). "
+            f"Wrote output to {destination}.",
+            err=True,
+        )
+
+    if should_fail:
+        raise typer.Exit(2)

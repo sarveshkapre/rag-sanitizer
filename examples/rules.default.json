@@ -1,0 +1,23 @@
+{
+  "instruction_patterns": [
+    "ignore (all|previous) (instructions|messages)",
+    "system prompt",
+    "developer message",
+    "you are (an?|the)",
+    "act as",
+    "call (the )?tool",
+    "function call"
+  ],
+  "secret_patterns": [
+    "api key",
+    "password",
+    "secret",
+    "token"
+  ],
+  "weights": {
+    "instruction_like": 0.5,
+    "missing_citation": 0.2,
+    "secret_like": 0.2,
+    "tool_instruction": 0.2
+  }
+}

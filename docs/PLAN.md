@@ -3,6 +3,9 @@
 ## Goal
 Ship a local-first RAG sanitizer that strips instruction-like text, scores risk, and enforces citations for retrieved chunks.
 
+## Shipped
+- 2026-02-01: Rule-pack support (`--rules`, `--dump-default-rules`) + redaction metadata + stdin/stdout + `--max-risk` gating.
+
 ## Scope (MVP)
 - JSONL input/output with chunk metadata.
 - Instruction-like detection with transparent flags.
@@ -25,7 +28,7 @@ Ship a local-first RAG sanitizer that strips instruction-like text, scores risk,
 
 ## Milestones
 1. Scaffold repo + CLI + example input/output.
-2. Implement sanitizer core + policies.
+2. Implement sanitizer core + policies (including configurable rules).
 3. Tests, CI, docs polish.
 
 ## Risks

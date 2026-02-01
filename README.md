@@ -18,6 +18,19 @@ pip install -e .[dev]
 rag-sanitize --in examples/chunks.jsonl --out sanitized.jsonl
 ```
 
+## Rules (configurable regex packs)
+Dump the built-in rules to a JSON file, edit, then re-run:
+```bash
+rag-sanitize --dump-default-rules rules.json
+rag-sanitize --in examples/chunks.jsonl --out sanitized.jsonl --rules rules.json
+```
+
+## CI/CD-friendly usage
+Read from stdin / write to stdout and fail the run if risk is too high:
+```bash
+cat examples/chunks.jsonl | rag-sanitize --in - --out - --max-risk 0.7 > sanitized.jsonl
+```
+
 ## Input format (JSONL)
 Each line is a JSON object:
 ```json
@@ -26,7 +39,7 @@ Each line is a JSON object:
 
 ## Output format (JSONL)
 ```json
-{"id":"chunk-1","sanitized_text":"...","risk_score":0.3,"flags":["instruction_like"],"citations":["doc.pdf#page=3"],"citation_ok":true}
+{"id":"chunk-1","sanitized_text":"...","risk_score":0.3,"flags":["instruction_like"],"source":"doc.pdf","citations":["doc.pdf#page=3"],"citation_ok":true,"redactions":[{"line_number":1,"type":"instruction_like","matched_patterns":["system prompt"]}]}
 ```
 
 ## Docker
@@ -38,4 +51,3 @@ docker build -t rag-sanitizer .
 - `docs/PLAN.md`
 - `docs/PROJECT.md`
 - `docs/ROADMAP.md`
-

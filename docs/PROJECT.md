@@ -13,6 +13,6 @@ make release
 ```
 
 ## Next 3 improvements
-1. Configurable rule packs (regex lists + thresholds).
+1. HTML/markdown-aware sanitization.
 2. Optional language detection + multilingual heuristics.
-3. HTML/markdown-aware sanitization.
+3. Pluggable rule-pack discovery (directory + named presets).
