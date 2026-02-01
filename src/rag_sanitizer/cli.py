@@ -26,7 +26,9 @@ ALLOW_MISSING_OPT = typer.Option(
 
 RULES_OPT = typer.Option(None, "--rules", help="JSON rules file (regex lists + weights)")
 DUMP_DEFAULT_RULES_OPT = typer.Option(
-    None, "--dump-default-rules", help="Write default rules JSON to a file and exit"
+    None,
+    "--dump-default-rules",
+    help="Write default rules JSON to a file (or '-' for stdout) and exit",
 )
 MAX_RISK_OPT = typer.Option(
     None,
@@ -39,6 +41,11 @@ MARKDOWN_OPT = typer.Option(
     False,
     "--markdown",
     help="Enable Markdown-aware sanitization (e.g., ignore matches inside fenced code blocks)",
+)
+FAIL_ON_FLAG_OPT = typer.Option(
+    None,
+    "--fail-on-flag",
+    help="Exit non-zero if any chunk contains this flag (repeatable)",
 )
 QUIET_OPT = typer.Option(False, "--quiet", help="Suppress summary output")
 
@@ -62,16 +69,22 @@ def run(
     output_path: str | None = OUT_OPT,
     allow_missing_citations: bool = ALLOW_MISSING_OPT,
     rules: Path | None = RULES_OPT,
-    dump_default_rules: Path | None = DUMP_DEFAULT_RULES_OPT,
+    dump_default_rules: str | None = DUMP_DEFAULT_RULES_OPT,
     max_risk: float | None = MAX_RISK_OPT,
     markdown: bool = MARKDOWN_OPT,
+    fail_on_flag: list[str] | None = FAIL_ON_FLAG_OPT,
     on_error: OnError = ON_ERROR_OPT,
     quiet: bool = QUIET_OPT,
 ) -> None:
     if dump_default_rules is not None:
-        dump_default_rules.parent.mkdir(parents=True, exist_ok=True)
-        dump_default_rules.write_text(dump_default_rules_json() + "\n", encoding="utf-8")
-        typer.echo(f"Wrote default rules to {dump_default_rules}")
+        rules_json = dump_default_rules_json() + "\n"
+        if dump_default_rules == "-":
+            typer.echo(rules_json.rstrip("\n"))
+            raise typer.Exit(0)
+        dump_path = Path(dump_default_rules)
+        dump_path.parent.mkdir(parents=True, exist_ok=True)
+        dump_path.write_text(rules_json, encoding="utf-8")
+        typer.echo(f"Wrote default rules to {dump_path}")
         raise typer.Exit(0)
 
     if input_path is None or output_path is None:
@@ -94,6 +107,7 @@ def run(
     flagged = 0
     max_seen_risk = 0.0
     should_fail = False
+    fail_on_flag_set = {flag.strip() for flag in (fail_on_flag or []) if flag.strip()}
 
     infile_cm = (
         nullcontext(sys.stdin)
@@ -135,6 +149,8 @@ def run(
             if sanitized.risk_score > max_seen_risk:
                 max_seen_risk = sanitized.risk_score
             if max_risk is not None and sanitized.risk_score >= max_risk:
+                should_fail = True
+            if fail_on_flag_set and any(flag in fail_on_flag_set for flag in sanitized.flags):
                 should_fail = True
 
     if not quiet:

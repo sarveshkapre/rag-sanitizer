@@ -31,6 +31,11 @@ Read from stdin / write to stdout and fail the run if risk is too high:
 cat examples/chunks.jsonl | rag-sanitize --in - --out - --max-risk 0.7 > sanitized.jsonl
 ```
 
+Fail the run if any chunk contains a specific flag:
+```bash
+rag-sanitize --in examples/chunks.jsonl --out sanitized.jsonl --fail-on-flag missing_citation
+```
+
 ## Markdown-aware sanitization
 Ignore instruction-like matches inside fenced code blocks:
 ```bash

@@ -4,6 +4,7 @@
 - Configurable rules: `rag-sanitize --dump-default-rules rules.json` and `rag-sanitize --rules rules.json`
 - CI-friendly IO: `--in -` / `--out -`
 - Risk gating for pipelines: `--max-risk 0..1` exits non-zero if any chunk meets/exceeds threshold
+- Flag gating for pipelines: `--fail-on-flag <flag>` (repeatable) exits non-zero if any chunk contains a flag
 - Output transparency: JSONL now includes `source` and `redactions` (line-level rule hits)
 - Markdown-aware mode: `--markdown` ignores matches inside fenced code blocks
 
