@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sys
 from contextlib import nullcontext
 from enum import Enum
@@ -47,6 +48,11 @@ FAIL_ON_FLAG_OPT = typer.Option(
     "--fail-on-flag",
     help="Exit non-zero if any chunk contains this flag (repeatable)",
 )
+SUMMARY_JSON_OPT = typer.Option(
+    None,
+    "--summary-json",
+    help="Write JSON summary to a file (or '-' for stdout)",
+)
 QUIET_OPT = typer.Option(False, "--quiet", help="Suppress summary output")
 
 
@@ -73,6 +79,7 @@ def run(
     max_risk: float | None = MAX_RISK_OPT,
     markdown: bool = MARKDOWN_OPT,
     fail_on_flag: list[str] | None = FAIL_ON_FLAG_OPT,
+    summary_json: str | None = SUMMARY_JSON_OPT,
     on_error: OnError = ON_ERROR_OPT,
     quiet: bool = QUIET_OPT,
 ) -> None:
@@ -91,6 +98,8 @@ def run(
         input_path = "-"
     if not output_path:
         output_path = "-"
+    if summary_json == "-" and output_path == "-":
+        raise typer.BadParameter("--summary-json '-' cannot be used with --out '-'")
 
     rule_pack = load_rule_pack(rules) if rules is not None else None
 
@@ -108,6 +117,7 @@ def run(
     max_seen_risk = 0.0
     should_fail = False
     fail_on_flag_set = {flag.strip() for flag in (fail_on_flag or []) if flag.strip()}
+    flags_count: dict[str, int] = {}
 
     infile_cm = (
         nullcontext(sys.stdin)
@@ -146,6 +156,8 @@ def run(
             processed += 1
             if sanitized.flags:
                 flagged += 1
+                for flag in sanitized.flags:
+                    flags_count[flag] = flags_count.get(flag, 0) + 1
             if sanitized.risk_score > max_seen_risk:
                 max_seen_risk = sanitized.risk_score
             if max_risk is not None and sanitized.risk_score >= max_risk:
@@ -160,6 +172,22 @@ def run(
             f"Wrote output to {destination}.",
             err=True,
         )
+
+    if summary_json is not None:
+        summary = {
+            "processed": processed,
+            "flagged": flagged,
+            "max_risk": round(max_seen_risk, 4),
+            "flags_count": flags_count,
+            "failed": should_fail,
+        }
+        summary_payload = json.dumps(summary, sort_keys=True)
+        if summary_json == "-":
+            typer.echo(summary_payload)
+        else:
+            summary_path = Path(summary_json)
+            summary_path.parent.mkdir(parents=True, exist_ok=True)
+            summary_path.write_text(summary_payload + "\n", encoding="utf-8")
 
     if should_fail:
         raise typer.Exit(2)

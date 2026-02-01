@@ -38,6 +38,11 @@ Fail the run if any chunk contains a specific flag:
 rag-sanitize --in examples/chunks.jsonl --out sanitized.jsonl --fail-on-flag missing_citation
 ```
 
+Write a machine-readable summary for CI dashboards:
+```bash
+rag-sanitize --in examples/chunks.jsonl --out sanitized.jsonl --summary-json summary.json
+```
+
 ## Markdown-aware sanitization
 Ignore instruction-like matches inside fenced code blocks:
 ```bash
