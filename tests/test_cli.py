@@ -25,6 +25,21 @@ def test_cli_run(tmp_path: Path) -> None:
     assert "Keep this" in output_path.read_text()
 
 
+def test_cli_defaults_out_to_stdout(tmp_path: Path) -> None:
+    input_path = tmp_path / "in.jsonl"
+    payload = {
+        "id": "c1",
+        "text": "Keep this",
+        "citations": ["doc#1"],
+    }
+    input_path.write_text(json.dumps(payload) + "\n", encoding="utf-8")
+
+    runner = CliRunner()
+    result = runner.invoke(app, ["--in", str(input_path), "--quiet"])
+    assert result.exit_code == 0
+    assert "Keep this" in result.stdout
+
+
 def test_cli_dump_default_rules(tmp_path: Path) -> None:
     rules_path = tmp_path / "rules.json"
     runner = CliRunner()

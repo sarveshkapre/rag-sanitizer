@@ -16,8 +16,8 @@ from rag_sanitizer.sanitizer import (
 
 app = typer.Typer(no_args_is_help=True)
 
-IN_OPT = typer.Option(None, "--in", "-i", help="Input JSONL file path, or '-' for stdin")
-OUT_OPT = typer.Option(None, "--out", "-o", help="Output JSONL file path, or '-' for stdout")
+IN_OPT = typer.Option("-", "--in", "-i", help="Input JSONL file path, or '-' for stdin")
+OUT_OPT = typer.Option("-", "--out", "-o", help="Output JSONL file path, or '-' for stdout")
 ALLOW_MISSING_OPT = typer.Option(
     False,
     "--allow-missing-citations",
@@ -65,8 +65,8 @@ ON_ERROR_OPT = typer.Option(
 
 @app.command()
 def run(
-    input_path: str | None = IN_OPT,
-    output_path: str | None = OUT_OPT,
+    input_path: str = IN_OPT,
+    output_path: str = OUT_OPT,
     allow_missing_citations: bool = ALLOW_MISSING_OPT,
     rules: Path | None = RULES_OPT,
     dump_default_rules: str | None = DUMP_DEFAULT_RULES_OPT,
@@ -87,10 +87,10 @@ def run(
         typer.echo(f"Wrote default rules to {dump_path}")
         raise typer.Exit(0)
 
-    if input_path is None or output_path is None:
-        raise typer.BadParameter(
-            "--in and --out are required (unless --dump-default-rules is used)"
-        )
+    if not input_path:
+        input_path = "-"
+    if not output_path:
+        output_path = "-"
 
     rule_pack = load_rule_pack(rules) if rules is not None else None
 

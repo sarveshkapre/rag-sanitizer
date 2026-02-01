@@ -18,6 +18,8 @@ pip install -e .[dev]
 rag-sanitize --in examples/chunks.jsonl --out sanitized.jsonl
 ```
 
+Defaults: `--in -` (stdin) and `--out -` (stdout), so you can omit either when piping.
+
 ## Rules (configurable regex packs)
 Dump the built-in rules to a JSON file, edit, then re-run:
 ```bash
